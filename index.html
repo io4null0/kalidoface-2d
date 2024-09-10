@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kalido Face2D</title>
+    <link rel="stylesheet" href="styles.css"> <!-- 必要に応じてスタイルシートを追加 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script> <!-- TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script> <!-- PoseNet -->
+    <script src="script.js" defer></script> <!-- メインスクリプト -->
+</head>
+<body>
+    <h1>Kalido Face2D</h1>
+    <video id="video" autoplay></video>
+    <canvas id="canvas"></canvas>
+    <script>
+        // メインのJavaScriptコードをここに記述
+        document.addEventListener("DOMContentLoaded", async () => {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // Webカメラアクセスの設定
+            async function setupCamera() {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: true
+                });
+                video.srcObject = stream;
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve();
+                    };
+                });
+            }
+
+            // PoseNetのモデルロード
+            async function loadPoseNet() {
+                const net = await posenet.load();
+                return net;
+            }
+
+            // キーポイントの描画
+            function drawKeypoints(keypoints) {
+                keypoints.forEach(keypoint => {
+                    if (keypoint.score > 0.5) {
+                        const { y, x } = keypoint.position;
+                        ctx.beginPath();
+                        ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                        ctx.fillStyle = 'red';
+                        ctx.fill();
+                    }
+                });
+            }
+
+            // メイン処理
+            async function main() {
+                await setupCamera();
+                const net = await loadPoseNet();
+                canvas.width = video.width;
+                canvas.height = video.height;
+
+                function detectPose() {
+                    net.estimateSinglePose(video, { flipHorizontal: false }).then(({ keypoints }) => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        drawKeypoints(keypoints);
+                        requestAnimationFrame(detectPose);
+                    });
+                }
+
+                detectPose();
+            }
+
+            main();
+        });
+    </script>
+</body>
+</html>
